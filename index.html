@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="fa">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>نسخه آزمایشی برنامک - تست عضویت</title>
+<style>
+  body{font-family: Tahoma, Arial, sans-serif; background: linear-gradient(180deg,#e0f7fa,#b2ebf2); color:#013b34; margin:0; padding:20px;}
+  .card{max-width:760px;margin:30px auto;background:white;border-radius:12px;padding:22px;box-shadow:0 8px 30px rgba(0,0,0,0.08)}
+  header{display:flex;gap:14px;align-items:center}
+  header img{width:72px;height:72px;border-radius:10px;object-fit:cover}
+  h1{margin:0;font-size:22px;color:#006064}
+  p.lead{color:#004d40;margin-top:8px}
+  .channels{margin:18px 0;padding:12px;background:#e0f2f1;border-radius:8px}
+  button{background:#00796b;color:#fff;padding:10px 16px;border:none;border-radius:8px;cursor:pointer;font-size:16px}
+  .danger{background:#d32f2f}
+  .msg{margin-top:14px;padding:12px;border-radius:8px;background:#e8f5e9;color:#1b5e20}
+  footer{margin-top:18px;font-size:13px;color:#00695c}
+</style>
+</head>
+<body>
+  <div class="card">
+    <header>
+      <img src="assets/header.jpg" alt="هدر گرافیکی" />
+      <div>
+        <h1>نسخه آزمایشی برنامک</h1>
+        <p class="lead">به نسخه آزمایشی برنامک خوش آمدید 🌸 لطفاً برای ادامه، ابتدا در کانال عضو شوید.</p>
+      </div>
+    </header>
+
+    <div class="channels">
+      <strong>کانال‌های الزامی برای عضویت:</strong>
+      <ul id="channelList"></ul>
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button id="checkBtn">بررسی عضویت واقعی</button>
+      <button class="danger" id="refreshBtn">من هنوز عضو نشدم</button>
+    </div>
+
+    <div id="result" class="msg" style="display:none"></div>
+
+    <footer>
+      <small>نسخه آزمایشی — متن تستی. بعد از تایید می‌توانید متن و لیست کانال‌ها را در تنظیمات تغییر دهید.</small>
+    </footer>
+  </div>
+
+<script>
+const config = {
+  channels: ["@hamserr"]
+};
+
+const channelListEl = document.getElementById('channelList');
+config.channels.forEach(ch => {
+  const li = document.createElement('li');
+  li.textContent = ch;
+  channelListEl.appendChild(li);
+});
+
+function getUserIdFromPlatform() {
+  try {
+    if(window.Eitaa && window.Eitaa.WebApp && window.Eitaa.WebApp.initDataUnsafe && window.Eitaa.WebApp.initDataUnsafe.user) {
+      return window.Eitaa.WebApp.initDataUnsafe.user.id;
+    }
+    if(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+      return window.Telegram.WebApp.initDataUnsafe.user.id;
+    }
+  } catch(e){}
+  const fallback = prompt("برای تست: لطفاً user_id (عدد) خود را وارد کنید (مثلاً 123456789):");
+  return fallback ? parseInt(fallback) : null;
+}
+
+document.getElementById('checkBtn').addEventListener('click', async () => {
+  const userId = getUserIdFromPlatform();
+  if(!userId) {
+    showResult('شناسه کاربر نامعتبر است. برای تست یک عدد وارد کنید.', true);
+    return;
+  }
+  showResult('در حال بررسی عضویت ... لطفاً صبر کنید');
+  try {
+    const resp = await fetch('/api/check-membership', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ user_id: userId, channels: config.channels })
+    });
+    const data = await resp.json();
+    if(resp.ok) {
+      if(data.all_members) {
+        showResult('تبریک! همه عضویت ها تایید شد ✅');
+      } else {
+        showResult('عضویت کامل نیست: ' + data.missing.join(', '), true);
+      }
+    } else {
+      showResult('خطا: ' + (data.error || 'مشکل در سرور'), true);
+    }
+  } catch(e) {
+    showResult('خطا در اتصال به سرور: ' + e.message, true);
+  }
+});
+
+document.getElementById('refreshBtn').addEventListener('click', () => {
+  showResult('اگر عضو شدید، بعد از عضویت دکمه بررسی عضویت را بزنید.');
+});
+
+function showResult(msg, isError=false){
+  const el = document.getElementById('result');
+  el.style.display = 'block';
+  el.style.background = isError ? '#ffebee' : '#e8f5e9';
+  el.style.color = isError ? '#b71c1c' : '#1b5e20';
+  el.textContent = msg;
+}
+</script>
+</body>
+</html>
